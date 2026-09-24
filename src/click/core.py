@@ -105,6 +105,17 @@ def _echo_aborted() -> None:
     echo(_("Aborted!"), file=sys.stderr)
 
 
+def _echo_interrupted() -> None:
+    """Write the interrupt's blank line and the final abort message.
+
+    The blank line closes the terminal's ``^C`` echo. Both lines are
+    written by one report so that the message cannot be split across the
+    teardown in :meth:`Command.main`.
+    """
+    echo(file=sys.stderr)
+    _echo_aborted()
+
+
 def _outside_click_stacklevel() -> int:
     """Depth of the first stack frame outside Click.
 
@@ -1576,9 +1587,11 @@ class Command:
         # Every handler below takes the same two steps: propagate when
         # standalone mode is disabled, otherwise collect the message and the
         # exit code, and leave both to the teardown after the ``try``. The
-        # teardown writes the message and exits, and the outermost handler
-        # holds one policy for every interrupt arriving that late: the
-        # message may be lost, the intended exit code still wins.
+        # teardown writes the message at most once and exits, and the
+        # outermost handler holds one policy for an interrupt arriving that
+        # late, even one arriving while a previous late interrupt is being
+        # handled: the message may be lost, the intended exit code still
+        # wins.
         report: cabc.Callable[[], None] | None = None
         exit_code = 1
 
@@ -1615,13 +1628,12 @@ class Command:
 
                 report = _echo_aborted
             except (EOFError, KeyboardInterrupt) as e:
-                # The blank line closes the terminal's ``^C`` echo.
-                echo(file=sys.stderr)
-
                 if not standalone_mode:
+                    # The blank line closes the terminal's ``^C`` echo.
+                    echo(file=sys.stderr)
                     raise Abort() from e
 
-                report = _echo_aborted
+                report = _echo_interrupted
             except ClickException as e:
                 if not standalone_mode:
                     raise
@@ -1642,7 +1654,14 @@ class Command:
             if not standalone_mode:
                 raise
 
-            sys.exit(exit_code)
+            # The interrupt arrived after the outcome was decided. Keep
+            # exiting with the collected code, however often the interrupt
+            # repeats while this exit is underway.
+            while True:
+                try:
+                    sys.exit(exit_code)
+                except (EOFError, KeyboardInterrupt):
+                    continue
 
     def _main_shell_completion(
         self,

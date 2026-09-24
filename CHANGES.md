@@ -2,6 +2,11 @@
 
 Unreleased
 
+- A ``KeyboardInterrupt`` arriving while ``Command.main()`` handles a
+  previous late interrupt no longer escapes as an unhandled traceback. The
+  collected exit code still wins, however often the interrupt repeats, and
+  the abort message is written by a single report instead of being split
+  across the handler and the teardown. {issue}`3802`
 - A parameter name that is not a valid Python identifier, or that is a Python
   keyword, is deprecated and raises `TypeError` in Click 9.0. {pr}`3866`
 - An {class}`Option` name written as a Python identifier is deprecated when it

@@ -96,9 +96,9 @@ def test_interrupt_while_reporting_abort(monkeypatch, source, interrupt_at):
 
     The counted ``isatty`` picks the window. A prompt converts the interrupt
     to ``Abort`` itself, so the only window left in ``Command.main()`` is the
-    ``Aborted!`` message (``1``). An interrupt from the command body goes
-    through the conversion in ``Command.main()``, which writes a blank line
-    first (``1``), before the message (``2``).
+    ``Aborted!`` message (``1``). An interrupt from the command body is
+    reported by ``Command.main()`` with a blank line first (``1``), before
+    the message (``2``).
     """
     if source == "prompt":
         monkeypatch.setattr("click.termui.visible_prompt_func", _interrupt_prompt)
@@ -177,3 +177,32 @@ def test_interrupt_while_exiting_after_success(monkeypatch):
 
     assert _exit_code(cli, RecordingStderr(), monkeypatch) == 0
     assert codes == [0, 0]
+
+
+def test_interrupt_while_handling_late_interrupt(monkeypatch):
+    """A Ctrl-C while a previous late Ctrl-C is handled keeps the exit code.
+
+    The exit that the first late interrupt triggers is itself interruptible.
+    The policy must hold however often the interrupt repeats: the collected
+    exit code wins, the interrupt never escapes as an unhandled traceback.
+    """
+
+    @click.command()
+    def cli():
+        click.echo("done")
+
+    real_exit = sys.exit
+    codes = []
+
+    def interrupted_exit(code=None):
+        codes.append(code)
+
+        if len(codes) <= 2:
+            raise KeyboardInterrupt
+
+        real_exit(code)
+
+    monkeypatch.setattr(sys, "exit", interrupted_exit)
+
+    assert _exit_code(cli, RecordingStderr(), monkeypatch) == 0
+    assert codes == [0, 0, 0]
