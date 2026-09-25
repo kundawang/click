@@ -31,6 +31,42 @@ import click
             "Weigh apples vs....",
             id="abbreviation inside truncated sentence",
         ),
+        pytest.param(
+            "Compare apples vs. Oranges in stock.",
+            45,
+            "Compare apples vs. Oranges in stock.",
+            id="abbreviation before uppercase word",
+        ),
+        pytest.param(
+            "Compare apples vs. Oranges and pears in the stock.",
+            20,
+            "Compare apples...",
+            id="abbreviation before uppercase word, truncated",
+        ),
+        pytest.param(
+            "Use e.g. 5 threads to run.",
+            45,
+            "Use e.g. 5 threads to run.",
+            id="abbreviation before digit",
+        ),
+        pytest.param(
+            "E.g. Apples and Pears are fruits.",
+            45,
+            "E.g. Apples and Pears are fruits.",
+            id="capitalized abbreviation",
+        ),
+        pytest.param(
+            "Maintained by Dr. Smith and Ms. Jones.",
+            45,
+            "Maintained by Dr. Smith and Ms. Jones.",
+            id="title abbreviations",
+        ),
+        pytest.param(
+            "Pick apples, etc. More text follows.",
+            45,
+            "Pick apples, etc.",
+            id="other word before uppercase still ends sentence",
+        ),
         pytest.param("123 567 9. aaaa bbb", 10, "123 567...", id="lowercase after dot"),
         pytest.param(
             "Pick a fruit. 3 remain.", 20, "Pick a fruit.", id="digit after dot"

@@ -59,6 +59,31 @@ def make_str(value: t.Any) -> str:
     return str(value)
 
 
+#: Stems of abbreviations whose trailing period never ends a sentence, no
+#: matter what word follows. Stored lowercase, without the final period.
+_ABBREVIATIONS = frozenset(
+    {
+        "approx",
+        "ca",
+        "cf",
+        "dr",
+        "e.g",
+        "fig",
+        "i.e",
+        "inc",
+        "jr",
+        "ltd",
+        "mr",
+        "mrs",
+        "ms",
+        "prof",
+        "sr",
+        "st",
+        "vs",
+    }
+)
+
+
 def _make_default_short_help(help: str, max_length: int = 45) -> str:
     """Returns a condensed version of help string.
 
@@ -78,9 +103,17 @@ def _make_default_short_help(help: str, max_length: int = 45) -> str:
 
     # A period ends a sentence when it closes the text, or when the next word
     # does not start in lowercase. A lowercase word continues the sentence, so
-    # the period belongs to an abbreviation such as "vs.".
+    # the period belongs to an abbreviation such as "vs.". A known
+    # abbreviation never ends the sentence, even before an uppercase word or
+    # a digit.
     for i, word in enumerate(words):
-        if word.endswith(".") and (i == last_index or not words[i + 1][0].islower()):
+        if not word.endswith("."):
+            continue
+
+        if word[:-1].lower() in _ABBREVIATIONS:
+            continue
+
+        if i == last_index or not words[i + 1][0].islower():
             words = words[: i + 1]
             break
 
