@@ -2,6 +2,11 @@
 
 Unreleased
 
+- A `KeyboardInterrupt` arriving after parameter parsing, before the command
+  callback runs, takes the same single path through `Command.main()` as an
+  interrupt at any other timing: the blank line and `Aborted!` are one
+  report, written by the teardown instead of being split between the
+  exception handler and the teardown. {issue}`3802`
 - A parameter name that is not a valid Python identifier, or that is a Python
   keyword, is deprecated and raises `TypeError` in Click 9.0. {pr}`3866`
 - An {class}`Option` name written as a Python identifier is deprecated when it

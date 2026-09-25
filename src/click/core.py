@@ -105,6 +105,17 @@ def _echo_aborted() -> None:
     echo(_("Aborted!"), file=sys.stderr)
 
 
+def _echo_interrupted() -> None:
+    """Write the interrupt's blank line, then the final abort message.
+
+    The blank line closes the terminal's ``^C`` echo. Both lines are a
+    single report, so that the teardown in :meth:`Command.main` writes the
+    whole message whenever the interrupt arrives.
+    """
+    echo(file=sys.stderr)
+    _echo_aborted()
+
+
 def _outside_click_stacklevel() -> int:
     """Depth of the first stack frame outside Click.
 
@@ -1615,13 +1626,15 @@ class Command:
 
                 report = _echo_aborted
             except (EOFError, KeyboardInterrupt) as e:
-                # The blank line closes the terminal's ``^C`` echo.
-                echo(file=sys.stderr)
-
                 if not standalone_mode:
+                    # The blank line closes the terminal's ``^C`` echo.
+                    echo(file=sys.stderr)
                     raise Abort() from e
 
-                report = _echo_aborted
+                # Collect one report, like every other handler, so that an
+                # interrupt arriving at any point of the execution takes
+                # the same single path through the teardown.
+                report = _echo_interrupted
             except ClickException as e:
                 if not standalone_mode:
                     raise

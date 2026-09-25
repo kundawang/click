@@ -13,6 +13,11 @@ stay in place: the first interrupt reaches a non-standalone caller as
 message stays as it is (declined in
 https://github.com/pallets/click/issues/1447 and
 https://github.com/pallets/click/issues/2584).
+
+Every timing takes the same single path through ``Command.main()``: the
+handler collects the report and the exit code, the teardown writes the
+message and exits. An interrupt arriving between parsing and the callback
+is no exception.
 """
 
 import sys
@@ -177,3 +182,43 @@ def test_interrupt_while_exiting_after_success(monkeypatch):
 
     assert _exit_code(cli, RecordingStderr(), monkeypatch) == 0
     assert codes == [0, 0]
+
+
+def test_interrupt_after_parsing_before_callback(monkeypatch):
+    """A Ctrl-C after parsing, before the callback, takes the one path.
+
+    ``Command.main()`` parses the parameters in ``make_context()`` and runs
+    the callback in ``invoke()``. An interrupt arriving in the window
+    between the two is collected like an interrupt at any other timing:
+    the teardown writes the blank line and ``Aborted!`` as a single
+    report, and the command exits with code 1.
+    """
+
+    def interrupted_invoke(self, ctx):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(click.core.Command, "invoke", interrupted_invoke)
+
+    @click.command()
+    def cli():
+        pytest.fail("the callback must not run")
+
+    stderr = RecordingStderr()
+
+    assert _exit_code(cli, stderr, monkeypatch) == 1
+    assert stderr.text == "\nAborted!\n"
+
+
+def test_interrupt_while_warning_about_deprecation(monkeypatch):
+    """A Ctrl-C while a deprecated command warns, before its callback.
+
+    The deprecation warning is the last thing ``Command.invoke()`` writes
+    after parsing and before the callback, so the interrupt lands in that
+    window without patching Click internals.
+    """
+
+    @click.command(deprecated=True)
+    def cli():
+        pytest.fail("the callback must not run")
+
+    assert _exit_code(cli, RecordingStderr(interrupt_at=1), monkeypatch) == 1
