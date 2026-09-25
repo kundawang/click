@@ -33,6 +33,8 @@ Unreleased
 - A command's short help no longer stops at an abbreviation such as `vs.` or `e.g.`
   inside the first sentence. A period ends the sentence only when it closes the text
   or the next word does not start in lowercase. {pr}`3865`
+- A command's short help no longer stops at a known abbreviation such as `vs.` or
+  `e.g.` when the next word starts with an uppercase letter or a digit. {pr}`3865`
 
 ## Version 8.5.0
 
